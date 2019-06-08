@@ -5,6 +5,9 @@ var address = require('network-address')
 var updateNotifier = require('update-notifier')
 var powerOff = require('power-off')
 var sleepMode = require('sleep-mode')
+var delay = require('delay')
+var Conf = require('conf')
+var config = new Conf()
 var pkg = require('./package.json')
 
 var app = express()
@@ -19,24 +22,44 @@ app.delete('/', function (req, res) {
 })
 
 app.post('/power-off', function (req, res) {
-  powerOff(function (err, stderr, stdout) {
-    if (err) {
-      util.log(err)
-      res.status(500).json({ error: 'Can\'t run power-off' })
-    } else {
-      res.end()
-    }
+  Promise.race([
+    new Promise(function (resolve, reject) {
+      powerOff(function (err, stderr, stdout) {
+        if (err) {
+          util.log(err)
+          reject()
+        } else {
+          resolve()
+        }
+      })
+    }),
+    delay(200)
+  ]).then(function () {
+    res.status(200).end()
+  }).catch(function () {
+    res.status(500).json({ error: 'Can\'t run power-off' })
   })
+  
+  
 })
 
 app.post('/sleep', function (req, res) {
-  sleepMode(function (err, stderr, stdout) {
-    if (err) {
-      util.log(err)
-      res.status(500).json({ error: 'Can\'t run sleep' })
-    } else {
-      res.end()
-    }
+  Promise.race([
+    new Promise(function (resolve, reject) {
+      sleepMode(function (err, stderr, stdout) {
+        if (err) {
+          util.log(err)
+          reject()
+        } else {
+          resolve()
+        }
+      })
+    }),
+    delay(200)
+  ]).then(function () {
+    res.status(200).end()
+  }).catch(function () {
+    res.status(500).json({ error: 'Can\'t run power-off' })
   })
 })
 
@@ -54,7 +77,7 @@ app.get('/update', function (req, res) {
   })
 })
 
-var port = 5709
+var port = config.get('port') || 5709
 
 app.listen(port, function () {
   util.log('stop-server listening on port ' + port)
